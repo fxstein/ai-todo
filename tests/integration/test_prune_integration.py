@@ -1,10 +1,13 @@
 """Integration tests for prune functionality (CLI and MCP)."""
 
+import asyncio
 import io
+import json
 import sys
 from pathlib import Path
 
 import pytest
+from fastmcp import Client
 
 import ai_todo.mcp.server as mcp_server_module
 from ai_todo.cli.commands import add_command, archive_command, prune_command
@@ -83,14 +86,24 @@ def capture_cli_output(func, *args, **kwargs) -> str:
 
 
 def call_mcp_tool(tool_name: str, arguments: dict, todo_path: str):
-    """Call MCP tool directly."""
+    """Call MCP tool through FastMCP client API."""
     mcp_server_module.CURRENT_TODO_PATH = todo_path
 
-    tool = mcp._tool_manager._tools.get(tool_name)
-    if not tool:
-        raise ValueError(f"Unknown tool: {tool_name}")
+    async def _call():
+        async with Client(mcp) as client:
+            result = await client.call_tool(tool_name, arguments)
+            content = getattr(result, "content", result)
+            if isinstance(content, list):
+                text = "\n".join(
+                    item.text if hasattr(item, "text") else str(item) for item in content
+                )
+                try:
+                    return json.loads(text)
+                except json.JSONDecodeError:
+                    return text
+            return content
 
-    return tool.fn(**arguments)
+    return asyncio.run(_call())
 
 
 # CLI Integration Tests

@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from fastmcp import Client
 
 import ai_todo.mcp.server as mcp_server_module
 from ai_todo.cli.commands import (
@@ -76,31 +77,18 @@ def capture_cli_output(func, *args, **kwargs) -> str:
 
 
 async def capture_mcp_output(tool_name: str, arguments: dict, todo_path: str) -> str:
-    """Capture MCP tool output by calling the tool directly."""
-    # Set the global TODO path in the server module
+    """Capture MCP tool output through FastMCP client API."""
     mcp_server_module.CURRENT_TODO_PATH = todo_path
 
-    # Find the tool function
-    # FastMCP stores tools in _tool_manager._tools dictionary
     try:
-        tool = mcp._tool_manager._tools.get(tool_name)
-        if tool:
-            tool_func = tool.fn
-        else:
-            tool_func = None
-    except AttributeError:
-        # Fallback if internal structure changes, try public API if available
-        # But for now we rely on internal structure for testing
-        return "Error: Could not access tool manager"
-
-    if not tool_func:
-        return f"Unknown tool: {tool_name}"
-
-    # Call the tool function with arguments
-    # We use the underlying function 'fn' to bypass FastMCP runtime overhead for unit testing
-    try:
-        result = tool.fn(**arguments)
-        return result
+        async with Client(mcp) as client:
+            result = await client.call_tool(tool_name, arguments)
+            content = getattr(result, "content", result)
+            if isinstance(content, list):
+                return "\n".join(
+                    item.text if hasattr(item, "text") else str(item) for item in content
+                )
+            return str(content)
     except Exception as e:
         return f"Error calling tool {tool_name}: {e}"
 
@@ -400,11 +388,10 @@ class TestMCPCLIParity:
 async def test_all_mcp_tools_exist():
     """Verify all expected MCP tools are registered."""
 
-    # Get registered tools from FastMCP instance
-    try:
-        tool_names = set(mcp._tool_manager._tools.keys())
-    except AttributeError:
-        pytest.fail("Could not access tools from FastMCP instance")
+    # Get registered tools via FastMCP client API
+    async with Client(mcp) as client:
+        tools = await client.list_tools()
+    tool_names = {tool.name for tool in tools}
 
     # Expected tools (all phases)
     expected_tools = {

@@ -9,11 +9,15 @@ This test suite performs a comprehensive audit to verify that:
 This is the final gate before release (task #163.44.6).
 """
 
+import asyncio
 import re
 import subprocess
 from pathlib import Path
 
 import pytest
+from fastmcp import Client
+
+from ai_todo.mcp.server import mcp
 
 
 def get_shell_commands() -> set[str]:
@@ -149,47 +153,14 @@ def get_python_cli_commands() -> set[str]:
 
 
 def get_mcp_tools() -> set[str]:
-    """Get all MCP tool names from server definition."""
-    # The MCP tools are statically defined in server.py
-    # We know what they are from the implementation
-    return {
-        # Core Tasks
-        "add_task",
-        "add_subtask",
-        "complete_task",
-        "list_tasks",
-        "modify_task",
-        "delete_task",
-        "archive_task",
-        "restore_task",
-        "undo_task",
-        # Progress
-        "start_task",
-        "stop_task",
-        "get_active_tasks",
-        # Description & Tags (v3.1 API terminology standardization)
-        "set_description",
-        "set_tags",
-        # Display & Relationships
-        "show_task",
-        "relate_task",
-        # File Operations
-        "lint",
-        "reformat",
-        "reorder",
-        "resolve_conflicts",
-        # Configuration
-        "show_config",
-        "detect_coordination",
-        "setup_coordination",
-        "switch_mode",
-        # Tamper Detection
-        "accept_tamper",
-        # Info
-        "version",
-        "check_update",
-        "update",
-    }
+    """Get all MCP tool names from FastMCP via public client API."""
+
+    async def _list() -> set[str]:
+        async with Client(mcp) as client:
+            tools = await client.list_tools()
+            return {tool.name for tool in tools}
+
+    return asyncio.run(_list())
 
 
 class TestCompleteParity:
