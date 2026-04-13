@@ -359,16 +359,20 @@ class TestPruneManager:
 
             # Use older_than without specifying days (days=None)
             # Should use older_than cutoff, not default 30 days
+            # Choose a cutoff of 50 days ago — between the 45-day-old task (102)
+            # and the 60-day-old task (100). This proves older_than is respected
+            # because the default 30-day cutoff would also prune task 102.
+            cutoff = (datetime.now() - timedelta(days=50)).strftime("%Y-%m-%d")
             result = manager.identify_tasks_to_prune(
-                sample_archived_tasks, days=None, older_than="2025-12-20"
+                sample_archived_tasks, days=None, older_than=cutoff
             )
 
-            # Should include only tasks older than 2025-12-20
-            # Task 100 (60 days old ~= 2025-11-30), 102 (45 days old ~= 2025-12-15)
-            # but NOT 101 (10 days old ~= 2026-01-19)
+            # Only the 60-day-old task (100) should be pruned.
+            # The 45-day-old task (102) is AFTER the cutoff, proving older_than
+            # is used instead of the default 30 days (which would prune both).
             task_ids = {t.id for t in result}
             assert "100" in task_ids
-            assert "102" in task_ids
+            assert "102" not in task_ids
             assert "101" not in task_ids
 
     def test_identify_tasks_from_task_not_overridden(self, temp_todo_file, sample_archived_tasks):
