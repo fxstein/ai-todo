@@ -16,6 +16,11 @@ jobs:
       - name: Check branch name format
         run: |
           BRANCH="${{ github.head_ref }}"
+          # Exempt automated bot branches
+          if [[ "${BRANCH}" =~ ^(dependabot|renovate|bugbot)/ ]]; then
+            echo "Bot branch '${BRANCH}' - exempt from naming convention"
+            exit 0
+          fi
           # Pattern: username/AIT-123-description (case-insensitive AIT, any username)
           if ! echo "$BRANCH" | grep -qiE '^.+\/[Aa][Ii][Tt]-[0-9]+-.+$'; then
             echo "::error::Branch must follow format username/AIT-123-description (or ait-123-description)."
