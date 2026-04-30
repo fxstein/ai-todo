@@ -35,7 +35,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           msg="${{ github.event.head_commit.message }}"
-          tag=$(echo "$msg" | sed -nE 's/^chore: Release (v[0-9]+\.[0-9]+\.[0-9]+(b[0-9]+)?)$/\1/p')
+          tag=$(echo "$msg" | sed -nE 's/^chore: Release (v[0-9]+\.[0-9]+\.[0-9]+(b[0-9]+)?).*/\1/p')
           if [ -z "$tag" ]; then
             echo "Could not parse release tag from commit message: $msg"
             exit 1
@@ -758,6 +758,7 @@ jobs:
       - name: Create GitHub Release with all assets
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ needs.create-release-tag.outputs.tag || github.ref_name }}
           files: |
             dist/*
             legacy/todo.ai

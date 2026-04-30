@@ -47,6 +47,9 @@ def next_version(last_tag: str | None, bump: str, beta: bool) -> str:
     if beta and beta_num is not None:
         return f"{major}.{minor}.{patch}b{beta_num + 1}"
 
+    if not beta and beta_num is not None:
+        return f"{major}.{minor}.{patch}"
+
     if bump == "major":
         major, minor, patch = major + 1, 0, 0
     elif bump == "minor":
