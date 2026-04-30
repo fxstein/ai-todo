@@ -115,6 +115,8 @@ def replace_version(new_version: str) -> None:
     legacy_text = re.sub(r"^# Version: .*$", f"# Version: {new_version}", legacy_text, flags=re.M)
     legacy.write_text(legacy_text, encoding="utf-8")
 
+    subprocess.run(["uv", "lock"], cwd=ROOT, check=True)
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Prepare release notes and version updates")

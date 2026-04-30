@@ -10,6 +10,10 @@ Python 3.10 compatibility has been fully restored by replacing `datetime.UTC` wi
 
 ---
 
+- fix(ci): fix markdown lint and ruff formatting
+- fix(ci): fix workflow parsing error on PR events
+- fix(release): incorporate bugbot review feedback
+- chore: Release v4.0.0b4
 - chore(deps): bump pytest from 9.0.2 to 9.0.3 (#107)
 - chore(deps): bump virtualenv from 20.35.4 to 20.36.1 (#87)
 - chore(deps): bump cryptography from 46.0.3 to 46.0.7 (#102)
