@@ -568,8 +568,10 @@ jobs:
     # CRITICAL: Only runs AFTER all tests pass
     needs: [create-release-tag, all-tests-pass]
     # Only run on tag pushes - use direct GitHub context for reliability
+    # CRITICAL: Explicitly require all-tests-pass to succeed (not just not-fail)
     if: |
       always() &&
+      needs.all-tests-pass.result == 'success' &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
       (startsWith(github.ref, 'refs/tags/v') || needs.create-release-tag.outputs.tag != '')
@@ -705,8 +707,10 @@ jobs:
     # This ensures release CANNOT proceed unless ALL tests pass
     needs: [create-release-tag, validate-release]
     # Only run on tag pushes - use same direct GitHub context as validate-release
+    # CRITICAL: Explicitly require validate-release to succeed
     if: |
       always() &&
+      needs.validate-release.result == 'success' &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
       (startsWith(github.ref, 'refs/tags/v') || needs.create-release-tag.outputs.tag != '')
