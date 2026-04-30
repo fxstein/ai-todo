@@ -61,16 +61,6 @@ jobs:
             git push origin "$tag"
           fi
 
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "GitHub release $tag already exists"
-          else
-            prerelease_flag=""
-            if echo "$tag" | grep -qE 'b[0-9]+$'; then
-              prerelease_flag="--prerelease"
-            fi
-            gh release create "$tag" --title "$tag" --notes-file release/RELEASE_NOTES.md $prerelease_flag
-          fi
-
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
@@ -293,7 +283,7 @@ jobs:
 
   test-comprehensive:
     name: Comprehensive Tests
-    needs: quality
+    needs: [changes, quality]
     if: |
       startsWith(github.ref, 'refs/tags/v') ||
       (github.event_name == 'push' && needs.changes.outputs.code == 'true')
@@ -341,7 +331,7 @@ jobs:
 
   test-quick:
     name: Quick Tests
-    needs: quality
+    needs: [changes, quality]
     if: |
       startsWith(github.ref, 'refs/tags/v') ||
       (github.event_name == 'push' && needs.changes.outputs.code == 'true')
@@ -535,10 +525,18 @@ jobs:
           for result in \
             "${{ needs.docs-quality.result }}" \
             "${{ needs.logs-quality.result }}" \
-            "${{ needs.quality.result }}" \
+            "${{ needs.quality.result }}"; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              failures=1
+            fi
+          done
+
+          # Test jobs MUST have run successfully (skipped is not acceptable)
+          for result in \
             "${{ needs.test-quick.result }}" \
             "${{ needs.test-comprehensive.result }}"; do
-            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+            if [ "$result" != "success" ]; then
+              echo "❌ Test job did not succeed (result: $result)"
               failures=1
             fi
           done
