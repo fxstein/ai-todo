@@ -506,8 +506,8 @@ jobs:
     name: ✅ All Tests Passed
     # Only run on tag pushes (when we need to release)
     if: |
-      always() && 
-      !contains(needs.*.result, 'failure') && 
+      always() &&
+      !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
       (startsWith(github.ref, 'refs/tags/v') || needs.create-release-tag.outputs.tag != '')
     # CRITICAL: Depends on ALL test jobs
@@ -569,8 +569,8 @@ jobs:
     needs: [create-release-tag, all-tests-pass]
     # Only run on tag pushes - use direct GitHub context for reliability
     if: |
-      always() && 
-      !contains(needs.*.result, 'failure') && 
+      always() &&
+      !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
       (startsWith(github.ref, 'refs/tags/v') || needs.create-release-tag.outputs.tag != '')
     runs-on: ubuntu-latest
@@ -706,8 +706,8 @@ jobs:
     needs: [create-release-tag, validate-release]
     # Only run on tag pushes - use same direct GitHub context as validate-release
     if: |
-      always() && 
-      !contains(needs.*.result, 'failure') && 
+      always() &&
+      !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
       (startsWith(github.ref, 'refs/tags/v') || needs.create-release-tag.outputs.tag != '')
     runs-on: ubuntu-latest
