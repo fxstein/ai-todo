@@ -14,6 +14,55 @@ on:
     branches: [main]
 
 jobs:
+  create-release-tag:
+    name: Create Release Tag
+    if: github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'chore: Release v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Extract and push tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          msg="${{ github.event.head_commit.message }}"
+          tag=$(echo "$msg" | sed -nE 's/^chore: Release (v[0-9]+\.[0-9]+\.[0-9]+(b[0-9]+)?)$/\1/p')
+          if [ -z "$tag" ]; then
+            echo "Could not parse release tag from commit message: $msg"
+            exit 1
+          fi
+
+          version="${tag#v}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists locally"
+          else
+            git tag -a "$tag" -m "Release $tag"
+          fi
+
+          if git ls-remote --exit-code --tags origin "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists on origin"
+          else
+            git push origin "$tag"
+          fi
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "GitHub release $tag already exists"
+          else
+            gh release create "$tag" --title "$tag" --notes-file release/RELEASE_NOTES.md
+          fi
+
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
@@ -455,9 +504,9 @@ jobs:
   all-tests-pass:
     name: ✅ All Tests Passed
     # Only run on tag pushes (when we need to release)
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || needs.create-release-tag.outputs.tag != ''
     # CRITICAL: Depends on ALL test jobs
-    needs: [docs-quality, logs-quality, quality, test-quick, test-comprehensive]
+    needs: [create-release-tag, docs-quality, logs-quality, quality, test-quick, test-comprehensive]
     runs-on: ubuntu-latest
     steps:
       - name: Evaluate all checks
@@ -504,14 +553,25 @@ jobs:
   validate-release:
     name: Validate Release Version
     # CRITICAL: Only runs AFTER all tests pass
-    needs: [all-tests-pass]
+    needs: [create-release-tag, all-tests-pass]
     # Only run on tag pushes - use direct GitHub context for reliability
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || needs.create-release-tag.outputs.tag != ''
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.validate.outputs.version }}
       is_prerelease: ${{ steps.validate.outputs.is_prerelease }}
     steps:
+      - name: Resolve release tag
+        id: resolve-tag
+        run: |
+          if [ -n "${{ needs.create-release-tag.outputs.tag }}" ]; then
+            echo "tag=${{ needs.create-release-tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "version=${{ needs.create-release-tag.outputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Debug workflow context
         run: |
           echo "================================================"
@@ -544,8 +604,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${{ github.ref_name }}"
-          VERSION="${TAG#v}"  # Remove 'v' prefix
+          TAG="${{ steps.resolve-tag.outputs.tag }}"
+          VERSION="${{ steps.resolve-tag.outputs.version }}"
 
           echo "Tag: $TAG"
           echo "Version: $VERSION"
@@ -626,9 +686,9 @@ jobs:
     # CRITICAL: Full dependency chain enforced:
     #   quality → tests → all-tests-pass → validate-release → release
     # This ensures release CANNOT proceed unless ALL tests pass
-    needs: [validate-release]
+    needs: [create-release-tag, validate-release]
     # Only run on tag pushes - use same direct GitHub context as validate-release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || needs.create-release-tag.outputs.tag != ''
     runs-on: ubuntu-latest
     environment: release # Required for PyPI Trusted Publisher
     permissions:
@@ -663,6 +723,8 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.create-release-tag.outputs.tag || github.ref_name }}
 
       # Pre-release flag comes from validation job (uses Python packaging library)
       # No need to detect again - just use the validated value
