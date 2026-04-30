@@ -22,7 +22,7 @@ This script will:
   - `ai_todo/__init__.py`
   - `legacy/todo.ai`
 
-3. Commit the generated changes with a release commit message format:
+1. Commit the generated changes with a release commit message format:
 
 ```text
 chore: Release vX.Y.Z
@@ -30,7 +30,7 @@ chore: Release vX.Y.Z
 
 (or `chore: Release vX.Y.ZbN` for beta)
 
-4. Merge PR to `main`.
+1. Merge PR to `main`.
 
 ## GitHub Actions Behavior
 

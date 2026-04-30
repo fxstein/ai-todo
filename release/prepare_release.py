@@ -35,7 +35,9 @@ def parse_version(tag: str | None) -> tuple[int, int, int, int | None]:
 def bump_from_commits(commits: list[tuple[str, str]]) -> str:
     bump = "patch"
     for subject, body in commits:
-        if re.search(r"(^|\n)BREAKING CHANGE", body, re.IGNORECASE) or re.match(r"^\w+\(?.*\)?!:", subject):
+        if re.search(r"(^|\n)BREAKING CHANGE", body, re.IGNORECASE) or re.match(
+            r"^\w+\(?.*\)?!:", subject
+        ):
             return "major"
         if re.match(r"^feat(\(.*\))?:", subject):
             bump = "minor"
@@ -68,7 +70,7 @@ def get_commits(last_tag: str | None) -> list[tuple[str, str]]:
     out = git("log", rev, "--pretty=format:%s%x1f%b%x1e", "--no-merges")
     commits: list[tuple[str, str]] = []
     for item in out.split("\x1e"):
-        item = item.strip(' \n\r\t')
+        item = item.strip(" \n\r\t")
 
         if not item:
             continue
@@ -92,12 +94,25 @@ def replace_version(new_version: str) -> None:
     init_py = ROOT / "ai_todo" / "__init__.py"
     legacy = ROOT / "legacy" / "todo.ai"
 
-    pyproject.write_text(re.sub(r'^version = ".*"$', f'version = "{new_version}"', pyproject.read_text(), flags=re.M), encoding="utf-8")
-    init_py.write_text(re.sub(r'^__version__ = ".*"$', f'__version__ = "{new_version}"', init_py.read_text(), flags=re.M), encoding="utf-8")
+    pyproject.write_text(
+        re.sub(
+            r'^version = ".*"$', f'version = "{new_version}"', pyproject.read_text(), flags=re.M
+        ),
+        encoding="utf-8",
+    )
+    init_py.write_text(
+        re.sub(
+            r'^__version__ = ".*"$',
+            f'__version__ = "{new_version}"',
+            init_py.read_text(),
+            flags=re.M,
+        ),
+        encoding="utf-8",
+    )
 
     legacy_text = legacy.read_text(encoding="utf-8")
     legacy_text = re.sub(r'^VERSION=".*"$', f'VERSION="{new_version}"', legacy_text, flags=re.M)
-    legacy_text = re.sub(r'^# Version: .*$', f'# Version: {new_version}', legacy_text, flags=re.M)
+    legacy_text = re.sub(r"^# Version: .*$", f"# Version: {new_version}", legacy_text, flags=re.M)
     legacy.write_text(legacy_text, encoding="utf-8")
 
 
