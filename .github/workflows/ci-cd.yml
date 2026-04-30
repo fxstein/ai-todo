@@ -16,7 +16,10 @@ on:
 jobs:
   create-release-tag:
     name: Create Release Tag
-    if: github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'chore: Release v')
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event.head_commit != null &&
+      startsWith(github.event.head_commit.message, 'chore: Release v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
