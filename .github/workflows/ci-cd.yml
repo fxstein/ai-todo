@@ -36,8 +36,9 @@ jobs:
         id: tag
         env:
           GH_TOKEN: ${{ github.token }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
-          msg="${{ github.event.head_commit.message }}"
+          msg="$COMMIT_MSG"
           tag=$(echo "$msg" | sed -nE 's/^chore: Release (v[0-9]+\.[0-9]+\.[0-9]+(b[0-9]+)?).*/\1/p')
           if [ -z "$tag" ]; then
             echo "Could not parse release tag from commit message: $msg"
@@ -63,7 +64,11 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "GitHub release $tag already exists"
           else
-            gh release create "$tag" --title "$tag" --notes-file release/RELEASE_NOTES.md
+            prerelease_flag=""
+            if echo "$tag" | grep -qE 'b[0-9]+$'; then
+              prerelease_flag="--prerelease"
+            fi
+            gh release create "$tag" --title "$tag" --notes-file release/RELEASE_NOTES.md $prerelease_flag
           fi
 
   changes:
