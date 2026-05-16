@@ -1,0 +1,72 @@
+name: CI Failure Tracker
+
+on:
+  workflow_run:
+    workflows: ["CI/CD"]
+    types: [completed]
+
+jobs:
+  create-or-update-issue:
+    name: Create or Update Issue on Failure
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure'
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Create or update failure issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const { owner, repo } = context.repo;
+            const branch = run.head_branch;
+            const sha = run.head_sha.substring(0, 7);
+            const runId = run.id;
+            const runUrl = run.html_url;
+            const commitUrl = `https://github.com/${owner}/${repo}/commit/${run.head_sha}`;
+            const authorLogin = run.head_commit?.author?.name || 'unknown';
+            const title = `CI Failure: CI/CD on ${branch}`;
+            const issueBody = [
+              `## CI/CD Failure Detected`,
+              ``,
+              `**Branch:** \`${branch}\``,
+              `**Commit:** [${sha}](${commitUrl})`,
+              `**Failed Run:** [#${runId}](${runUrl})`,
+              `**Commit author:** @${authorLogin}`,
+              ``,
+              `Please investigate the failing run linked above.`,
+            ].join('\n');
+            const commentBody = [
+              `### Recurrence on run [#${runId}](${runUrl})`,
+              ``,
+              `**Commit:** [${sha}](${commitUrl})`,
+            ].join('\n');
+            for (const label of ['ci-failure', 'automated']) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name: label });
+              } catch (e) {
+                if (e.status === 404) {
+                  await github.rest.issues.createLabel({
+                    owner, repo, name: label,
+                    color: label === 'ci-failure' ? 'e11d48' : '6b7280',
+                    description: label === 'ci-failure' ? 'Automated CI failure tracker' : 'Created by automation',
+                  });
+                }
+              }
+            }
+            const existingIssues = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', labels: 'ci-failure,automated', per_page: 100,
+            });
+            const existing = existingIssues.data.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: existing.number, body: commentBody,
+              });
+              core.info(`Commented on existing issue #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner, repo, title, body: issueBody, labels: ['ci-failure', 'automated'],
+              });
+              core.info(`Created issue #${created.data.number}`);
+            }
