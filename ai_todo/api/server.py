@@ -40,9 +40,11 @@ class APIRequestHandler(BaseHTTPRequestHandler):
 
 
 def _handler_for_project_root(project_root: str | Path | None) -> type[APIRequestHandler]:
-    handler = type("APIRequestHandlerForProjectRoot", (APIRequestHandler,), {})
-    handler.project_root = Path(project_root) if project_root is not None else Path.cwd()
-    return handler
+    class RequestHandler(APIRequestHandler):
+        project_root = Path.cwd()
+
+    RequestHandler.project_root = Path(project_root) if project_root is not None else Path.cwd()
+    return RequestHandler
 
 
 def create_http_server(
