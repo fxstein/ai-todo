@@ -23,6 +23,12 @@ Add this to your project's `.cursor/mcp.json`:
 
 Then enable the server in Cursor Settings → MCP Servers → toggle **ai-todo** on.
 
+If you also expose the HTTP API, the version endpoint is available at:
+
+```bash
+curl http://127.0.0.1:8000/api/version
+```
+
 That's it! Your AI agent can now manage tasks directly. No installation required.
 
 **Try it:** Ask your agent to *"create a task for implementing user authentication"*
